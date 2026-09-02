@@ -1772,7 +1772,9 @@ function initRoadNameLabels() {
   });
   document.fonts?.ready.then(scheduleRoadNameLabels);
 }
-window.refreshRoadNameLabels = scheduleRoadNameLabels;
+// Classic scripts share function bindings with window; keep this the same function.
+// Assigning the scheduler here would replace refreshRoadNameLabels and self-schedule forever.
+window.refreshRoadNameLabels = refreshRoadNameLabels;
 
 let mapInteractionSettleTimer = null;
 function setMapPerformanceMode(interacting) {

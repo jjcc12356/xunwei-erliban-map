@@ -3359,7 +3359,7 @@ body.tour-active .map-shop-marker.is-search-result::after {
 }
 
 /* Responsive */
-@media (min-width: 1051px) and (max-width: 1240px) {
+@media (min-width: 1051px) and (max-width: 1399px) {
   .map-context-ribbon { top: calc(var(--header-height) + 158px); }
   .map-reading-dock {
     right: 22px;

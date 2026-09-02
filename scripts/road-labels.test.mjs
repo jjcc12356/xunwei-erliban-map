@@ -25,6 +25,20 @@ test('overview hides labels and tours stay unobstructed', () => {
 });
 test('secondary road names only appear at close scales', () => assert.deepEqual(fixture({ zoom: 15.5, points: [[300, 400], [650, 400]], levels: ['primary', 'secondary'] }), [true, false]));
 test('invalid projected coordinates are hidden', () => assert.deepEqual(fixture({ points: [[NaN, 400]] }), [false]));
+test('classic-script window export does not create a perpetual animation loop', () => {
+  const queue = [];
+  const context = {
+    roadNameMarkers: [],
+    requestAnimationFrame: fn => { queue.push(fn); return queue.length; },
+    map: { getZoom: () => 16, getContainer: () => ({ getBoundingClientRect: () => ({}) }) },
+    document: { body: { classList: { contains: () => false } }, querySelectorAll: () => [] },
+  };
+  context.window = context;
+  vm.runInNewContext(main.slice(main.indexOf('function refreshRoadNameLabels()'), main.indexOf('let mapInteractionSettleTimer')) + '\nscheduleRoadNameLabels();', context);
+  assert.equal(queue.length, 1);
+  queue.shift()();
+  assert.equal(queue.length, 0, 'one layout refresh must finish without scheduling another frame');
+});
 test('generated labels contain eight named, local anchors', () => {
   const context = { window: {} };
   vm.runInNewContext(readFileSync(new URL('../public/map/road-labels.js', import.meta.url), 'utf8'), context);
