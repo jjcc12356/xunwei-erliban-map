@@ -1,0 +1,23 @@
+{
+  "brand": "寻味二里半",
+  "overview": "店铺总览",
+  "introduction": "店铺介绍",
+  "transportation": "交通路线",
+  "panelTitle": "店铺名称",
+  "overviewTitle": "店铺总览",
+  "overviewDesc": "这里放置所有店铺汇总信息、分布图、筛选内容……",
+  "introTitle": "店铺介绍",
+  "introDesc": "店铺详情、特色美食、营业时间、图文介绍……",
+  "transTitle": "交通路线",
+  "transDesc": "公交路线、步行导航、停车位置等出行信息……",
+  "langToggle": "切换语言 ▾",
+  "showToggle": "显示/隐藏 ▾",
+  "sidebarNav": "侧边导航栏",
+  "infoPanel": "信息弹窗面板",
+  "showAll": "全部显示",
+  "showFood": "仅显示美食",
+  "showEntertainment": "仅显示休闲娱乐",
+  "showDistricts": "显示分区",
+  "resetView": "复位视角",
+  "fullscreen": "全屏浏览"
+}

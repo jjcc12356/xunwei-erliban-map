@@ -1,0 +1,576 @@
+/* 全局重置 */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  font-family:
+    "Noto Sans SC",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  background-color: #f7f3ee;
+  color: #2c2c2c;
+}
+
+/* ========== 顶部导航栏 ========== */
+
+.header-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
+  background-color: rgba(245, 236, 226, 0.82);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(168, 124, 79, 0.25);
+  z-index: 999;
+}
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  background-image: url("../images/logo.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+.logo-text {
+  font-family: "Liu Jian Mao Cao", "KaiTi", serif;
+  font-size: 26px;
+  letter-spacing: 3px;
+  color: #8c3722;
+  font-weight: normal;
+}
+
+.nav-list {
+  display: flex;
+  list-style: none;
+  gap: 6px;
+  align-items: center;
+}
+
+.nav-item {
+  padding: 7px 16px;
+  font-size: 14px;
+  color: #594b3f;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.28s ease;
+  position: relative;
+}
+
+.nav-item:hover {
+  background-color: #8c3722;
+  color: #ffffff;
+}
+
+/* ========== 顶部下拉菜单样式 ========== */
+
+.dropdown-wrap {
+  position: relative;
+}
+
+.dropdown-title {
+  display: block;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 140px;
+  background: rgba(245, 236, 226, 0.96);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  padding: 8px;
+  list-style: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition: all 0.22s ease;
+  z-index: 1000;
+}
+
+.dropdown-wrap.open .dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.dropdown-option {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #594b3f;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.dropdown-option:hover {
+  background: #8c3722;
+  color: #fff;
+}
+
+/* ========== 右侧面板内部下拉 =========== */
+
+.inner-dropdown-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 10px;
+}
+
+.inner-dropdown-wrap label {
+  color: #7b6657;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.inner-dropdown-wrap select {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 30px 6px 10px;
+  border: 1px solid rgba(140, 55, 34, 0.22);
+  border-radius: 6px;
+  background: rgba(238, 228, 215, 0.72);
+  color: #8c3722;
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+}
+
+.inner-dropdown-wrap select:focus {
+  border-color: #8c3722;
+  background: #fff;
+}
+
+.inner-dropdown-title {
+  color: #a85038;
+  right: auto;
+  max-width: 120px;
+  padding: 6px 10px;
+  background: rgba(140, 55, 34, 0.08);
+  border-radius: 5px;
+  transition: 0.22s;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.inner-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: auto;
+  background: rgba(245, 236, 226, 0.96);
+  backdrop-filter: blur(12px);
+  border-radius: 5px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  padding: 6px;
+  list-style: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.22s ease;
+  transform: translateY(-4px);
+  z-index: 10;
+  font-size: 10px;
+}
+
+.inner-dropdown-title:hover {
+  background: rgba(140, 55, 34, 0.15);
+}
+
+.inner-dropdown-wrap.open .inner-dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.inner-dropdown-option {
+  padding: 8px 14px;
+  border-radius: 5px;
+  font-size: 14px;
+  color: #3a3a3a;
+  transition: 0.2s;
+  cursor: pointer;
+}
+
+.inner-dropdown-option:hover {
+  background-color: #8c3722f2;
+  color: #fff;
+}
+
+/* ========== 左侧悬浮侧边栏 ========== */
+
+.sidebar {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  left: 24px;
+  width: 70px;
+  background: rgb(151, 2, 2);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 24px 0;
+  z-index: 998;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.16);
+  transition:
+    width 0.34s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.34s ease;
+  overflow: hidden;
+}
+
+.sidebar.hidden {
+  transform: translate(-120%, -50%);
+}
+
+.sidebar:hover {
+  width: 170px;
+}
+
+.sidebar-menu {
+  list-style: none;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  margin: 6px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.24s ease;
+  color: #dcdcdc;
+}
+
+.menu-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.menu-item.active {
+  background-color: #a85038;
+  color: #fff;
+}
+
+.menu-icon {
+  min-width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-text {
+  font-size: 14px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar:hover .menu-text {
+  opacity: 1;
+}
+
+/* ========== 右侧介绍面板 ========== */
+
+.right-panel {
+  position: fixed;
+  top: 64px;
+  right: 0;
+  width: 300px;
+  height: calc(100vh - 64px);
+  background: rgba(245, 236, 226, 0.92);
+  backdrop-filter: blur(12px);
+  border-left: 1px solid rgba(168, 124, 79, 0.25);
+  z-index: 997;
+  transform: translateX(100%);
+  transition: transform 0.34s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+}
+
+.right-panel.open {
+  transform: translateX(0);
+}
+
+.panel-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.panel-logo-icon {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  background-image: url("../images/logo.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(168, 124, 79, 0.18);
+}
+
+.panel-header h3 {
+  font-family: "Zhi Mang Xing", "Liu Jian Mao Cao", serif;
+  color: #8c3722;
+  font-size: 22px;
+  letter-spacing: 2px;
+}
+
+.panel-close {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: 0.22s;
+}
+
+.panel-close:hover {
+  background-color: #8c3722;
+  color: #fff;
+}
+
+.panel-content {
+  padding: 20px;
+  color: #2c2c2c;
+  line-height: 1.7;
+}
+
+/* 右侧面板内容区块 */
+
+.shop-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 固定为网站主logo，和店铺无关 */
+
+.shop-logo-icon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  background-image: url("../images/logo.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.shop-name {
+  font-size: 20px;
+  font-family: serif;
+  letter-spacing: 3px;
+  color: #8c3722;
+  font-weight: normal;
+}
+
+.content-block {
+  display: none;
+}
+
+.content-block h4 {
+  font-family: "Liu Jian Mao Cao", serif;
+  color: #8c3722;
+  margin-bottom: 12px;
+  font-size: 20px;
+  letter-spacing: 1px;
+}
+
+.content-block p {
+  font-size: 14px;
+  color: #3a3a3a;
+  white-space: pre-line;
+  /* 识别换行，信息分行展示 */
+}
+
+/* 地图容器 */
+
+.map-wrapper {
+  position: fixed;
+  top: 64px;
+  left: 0;
+  width: 100%;
+  height: calc(100vh - 64px);
+  background: #e5e9f0;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+.protocol-notice {
+  position: fixed;
+  left: 50%;
+  top: 84px;
+  z-index: 1500;
+  width: min(520px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  padding: 14px 18px;
+  border: 1px solid rgba(140, 55, 34, 0.35);
+  border-radius: 10px;
+  background: #fff8ed;
+  box-shadow: 0 8px 24px rgba(66, 34, 22, 0.18);
+  color: #6f2e1c;
+  text-align: center;
+}
+
+.protocol-notice strong,
+.protocol-notice span {
+  display: block;
+}
+
+.protocol-notice span {
+  margin-top: 4px;
+  color: #594b3f;
+  font-size: 13px;
+}
+
+/* 右侧面板搜索栏 */
+
+.search-wrapper {
+  position: relative;
+  margin: 16px 0;
+  width: 100%;
+}
+
+.search-wrapper input {
+  width: 100%;
+  padding: 9px 14px;
+  padding-right: 76px;
+  border-radius: 8px;
+  border: 1px solid rgba(140, 55, 34, 0.2);
+  background: rgba(238, 228, 215, 0.7);
+  color: #2c2c2c;
+  font-size: 14px;
+  outline: none;
+  transition: 0.24s ease;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* 输入框聚焦效果 */
+
+.search-wrapper input:focus {
+  background: #ffffff;
+  border-color: #8c3722;
+  box-shadow: inset 0 0 3px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* 右侧搜索按钮 */
+
+.search-wrapper button {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #a85038;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.search-submit {
+  right: 5px;
+}
+
+.search-wrapper .search-clear {
+  right: 36px;
+  font-size: 12px;
+  color: #8b7a6c;
+}
+
+.search-wrapper button:hover,
+.search-wrapper button:focus-visible {
+  background: rgba(140, 55, 34, 0.1);
+  color: #8c3722;
+  outline: none;
+}
+
+/* =========店铺图片框新增样式========= */
+.shop-image-box {
+  width: 100%;
+  height: 160px;
+  margin: 12px 0;
+  padding: 6px;
+  border: #cc2a02 solid 2px;
+
+  overflow: hidden;
+  background-color: #e8e2da;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.shop-detail-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.no-image-tip {
+  color: #888;
+  font-size: 14px;
+}
+
+/* ========== 店铺信息列表 ========== */
+.shop-info-list {
+  margin: 8px 0 4px;
+}
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(168, 124, 79, 0.2);
+  font-size: 13px;
+  gap: 10px;
+}
+.info-label {
+  color: #8c3722;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.info-value {
+  color: #3a3a3a;
+  text-align: right;
+  word-break: break-all;
+}

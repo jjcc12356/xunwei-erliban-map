@@ -1,0 +1,23 @@
+{
+  "brand": "Taste of Erliban",
+  "overview": "Store Overview",
+  "introduction": "Store Introduction",
+  "transportation": "Transportation",
+  "panelTitle": "Store Name",
+  "overviewTitle": "Store Overview",
+  "overviewDesc": "All store summaries, distribution maps, filters...",
+  "introTitle": "Store Introduction",
+  "introDesc": "Details, specialties, opening hours, photos...",
+  "transTitle": "Transportation",
+  "transDesc": "Bus routes, walking directions, parking info...",
+  "langToggle": "Language ▾",
+  "showToggle": "Show/Hide ▾",
+  "sidebarNav": "Sidebar",
+  "infoPanel": "Info Panel",
+  "showAll": "Show All",
+  "showFood": "Show Food Only",
+  "showEntertainment": "Show Entertainment Only",
+  "showDistricts": "Show Districts",
+  "resetView": "Reset View",
+  "fullscreen": "Fullscreen"
+}
