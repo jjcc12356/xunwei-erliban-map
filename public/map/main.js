@@ -29,19 +29,9 @@ const SHOP_LIST_PAGE_SIZE = 48;
 const INDIVIDUAL_MARKER_ZOOM = 17;
 const SEARCH_RESULT_MARKER_LIMIT = 12;
 
-// 道路原始数据没有道路名称字段，因此补充一组经过人工校核的城市道路锚点。
-// 它们使用少量 HTML Marker，而不是额外绘制大量 symbol 图层，避免在三维白模上
-// 产生字形资源请求或显著增加渲染负担。
-const ROAD_NAME_LABELS = [
-  { name: "麓山南路", coordinates: [112.93955, 28.17862], level: "primary" },
-  { name: "登高路", coordinates: [112.93608, 28.18132], level: "primary" },
-  { name: "桃子湖路", coordinates: [112.94418, 28.18668], level: "primary" },
-  { name: "学堂坡", coordinates: [112.94882, 28.19065], level: "primary" },
-  { name: "麓山路", coordinates: [112.94498, 28.19512], level: "primary" },
-  { name: "新民路", coordinates: [112.94856, 28.19866], level: "secondary" },
-  { name: "潇湘中路", coordinates: [112.94984, 28.19572], level: "primary" },
-  { name: "枫林一路", coordinates: [112.94346, 28.20112], level: "secondary" },
-];
+// 从原始 roads.geojson 的真实路名及线段投影生成，精简道路文件不含 name。
+// 仅 8 个本地字体 Marker；不加载整份原始道路，也不请求在线字形服务。
+const ROAD_NAME_LABELS = window.ROAD_NAME_LABELS || [];
 let roadNameMarkers = [];
 
 const shopClusterLayerIds = [
@@ -1719,19 +1709,48 @@ window.culturalMap = map;
 function refreshRoadNameLabels() {
   const zoom = map.getZoom();
   const tourActive = document.body.classList.contains("tour-active");
-  roadNameMarkers.forEach(({ marker, level }) => {
-    const visible =
+  const canvasRect = map.getContainer().getBoundingClientRect();
+  // Read layout once, then apply all visibility changes together. No per-frame loop.
+  const occupied = [...document.querySelectorAll(
+    ".header-bar, .map-story-card, .map-context-ribbon, .map-reading-dock, .sidebar, .right-panel, .map-legend, .maplibregl-ctrl-group, .map-shop-marker.is-active, .smart-search-suggestions"
+  )].flatMap(element => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0.1 && rect.width && rect.height ? [rect] : [];
+  });
+  const overlaps = (a, b) => a.left < b.right + 8 && a.right > b.left - 8 && a.top < b.bottom + 8 && a.bottom > b.top - 8;
+  const updates = roadNameMarkers.map(({ marker, level }) => {
+    const point = map.project(marker.getLngLat());
+    const element = marker.getElement();
+    const width = element.offsetWidth, height = element.offsetHeight;
+    const rect = { left: canvasRect.left + point.x - width / 2, right: canvasRect.left + point.x + width / 2,
+      top: canvasRect.top + point.y - height / 2, bottom: canvasRect.top + point.y + height / 2 };
+    const visible = Number.isFinite(point.x) && Number.isFinite(point.y) &&
       !tourActive &&
-      (zoom >= 16.15 || (zoom >= 15.25 && level === "primary"));
-    marker.getElement().classList.toggle("is-hidden", !visible);
+      (zoom >= 16.15 || (zoom >= 15.25 && level === "primary")) &&
+      rect.left >= canvasRect.left + 8 && rect.right <= canvasRect.right - 8 &&
+      rect.top >= canvasRect.top + 8 && rect.bottom <= canvasRect.bottom - 8 &&
+      !occupied.some(other => overlaps(rect, other));
+    if (visible) occupied.push(rect);
+    return { element, visible };
+  });
+  updates.forEach(({ element, visible }) => element.classList.toggle("is-hidden", !visible));
+}
+
+let roadLabelRefreshFrame = 0;
+function scheduleRoadNameLabels() {
+  if (roadLabelRefreshFrame) return;
+  roadLabelRefreshFrame = requestAnimationFrame(() => {
+    roadLabelRefreshFrame = 0;
+    refreshRoadNameLabels();
   });
 }
 
 function initRoadNameLabels() {
   if (roadNameMarkers.length) return;
-  roadNameMarkers = ROAD_NAME_LABELS.map((road) => {
+  roadNameMarkers = [...ROAD_NAME_LABELS].sort((a, b) => Number(b.level === "primary") - Number(a.level === "primary")).map((road) => {
     const element = document.createElement("div");
-    element.className = `road-name-marker road-name-marker--${road.level}`;
+    element.className = `road-name-marker is-hidden road-name-marker--${road.level}`;
     element.setAttribute("aria-hidden", "true");
     element.innerHTML = `<span>${escapeHtml(road.name)}</span>`;
     const marker = new maplibregl.Marker({
@@ -1744,9 +1763,16 @@ function initRoadNameLabels() {
       .addTo(map);
     return { marker, level: road.level };
   });
-  refreshRoadNameLabels();
+  scheduleRoadNameLabels();
+  map.on("resize", scheduleRoadNameLabels);
+  const layoutObserver = new MutationObserver(scheduleRoadNameLabels);
+  layoutObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  document.body.addEventListener("transitionend", event => {
+    if (event.target.matches(".right-panel, .sidebar, .map-story-card, .map-reading-dock, .map-context-ribbon")) scheduleRoadNameLabels();
+  });
+  document.fonts?.ready.then(scheduleRoadNameLabels);
 }
-window.refreshRoadNameLabels = refreshRoadNameLabels;
+window.refreshRoadNameLabels = scheduleRoadNameLabels;
 
 let mapInteractionSettleTimer = null;
 function setMapPerformanceMode(interacting) {
