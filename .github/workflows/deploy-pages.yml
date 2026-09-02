@@ -23,6 +23,11 @@ jobs:
     steps:
       - name: 获取项目文件
         uses: actions/checkout@v6
+      - name: 检查地图脚本与路名避让
+        run: |
+          node --check public/map/main.js
+          node --check public/map/interactions.js
+          node --test scripts/road-labels.test.mjs
       - name: 准备静态地图与分享封面
         run: |
           mkdir _site
