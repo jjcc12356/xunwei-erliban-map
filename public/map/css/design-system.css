@@ -3644,7 +3644,8 @@ body.tour-active .map-shop-marker.is-search-result::after {
   .city-tour-watch button { min-height: 42px; padding-inline: 6px; }
   .tour-watch-list { grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); }
   .city-tour-meta em { display: none; }
-  .map-gesture-hint { bottom: 136px; white-space: nowrap; }
+  /* 移动端不显示桌面操作提示，避免与时辰控件重叠。 */
+  .map-gesture-hint { display: none; }
 
   body.tour-active .sidebar,
   body.tour-active .map-legend,
@@ -3680,6 +3681,22 @@ body.tour-active .map-shop-marker.is-search-result::after {
   .xiang-time-copy { text-align: left; }
   .xiang-time-track { gap: 1px; }
   .map-gesture-hint { bottom: 272px; }
+}
+
+/* 矮屏手机保留完整影像署名，长篇漫游说明在卡片内滚动。 */
+@media (max-width: 820px) and (max-height: 700px) {
+  .tour-place-photo[data-layout] .tour-photo-collage { height: 90px; }
+  .tour-place-photo[data-layout="campus"] .tour-photo-collage {
+    grid-template-rows: minmax(0, 1.5fr) minmax(24px, .5fr);
+  }
+  .tour-place-photo[data-layout="campus"] .tour-photo-editorial { display: none; }
+  .city-tour-panel {
+    max-height: calc(100vh - var(--header-height) - 236px);
+    max-height: calc(100dvh - var(--header-height) - 236px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
