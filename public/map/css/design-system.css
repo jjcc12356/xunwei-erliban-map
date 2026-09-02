@@ -222,6 +222,53 @@ body[data-xiang-time="hai"] #map { filter: saturate(0.76) brightness(0.84) contr
   transition: filter 0.6s ease;
 }
 
+/* 道路采用小型宣纸题签：仅在合适尺度出现，既辅助定位也不压过建筑和店铺点。 */
+.road-name-marker {
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity .2s ease;
+}
+
+.road-name-marker.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.road-name-marker span {
+  display: block;
+  padding: 3px 8px 4px;
+  color: #6d362c;
+  border: 1px solid rgba(115, 71, 48, .22);
+  border-radius: 2px 9px 2px 9px;
+  background: rgba(250, 246, 237, .84);
+  box-shadow: 0 4px 13px rgba(73, 49, 34, .12);
+  font-family: "FZKai-Z03", "STKaiti", "KaiTi", serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  line-height: 1;
+  text-shadow: 0 1px rgba(255, 250, 240, .72);
+  white-space: nowrap;
+}
+
+.road-name-marker--secondary span {
+  color: #4e7068;
+  border-color: rgba(65, 103, 94, .2);
+  background: rgba(242, 247, 240, .8);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+body.evening .road-name-marker span {
+  color: #f1cfac;
+  border-color: rgba(233, 203, 163, .28);
+  background: rgba(38, 48, 45, .78);
+  box-shadow: 0 5px 16px rgba(0, 0, 0, .25);
+  text-shadow: 0 1px rgba(0, 0, 0, .35);
+}
+
+body.evening .road-name-marker--secondary span { color: #b8dbcb; }
+
 .maplibregl-canvas {
   transition: filter .58s ease;
 }
@@ -728,6 +775,13 @@ body.tour-active .map-reading-dock,
 body.panel-open .map-reading-dock {
   opacity: 0;
   transform: translate(-50%, -10px);
+  pointer-events: none;
+}
+
+/* 信息面板展开后，让其余顶部信息退场，避免同一位置堆叠两层内容。 */
+body.panel-open .map-context-ribbon {
+  opacity: 0;
+  transform: translateY(-8px);
   pointer-events: none;
 }
 
@@ -3306,6 +3360,7 @@ body.tour-active .map-shop-marker.is-search-result::after {
 
 /* Responsive */
 @media (min-width: 1051px) and (max-width: 1240px) {
+  .map-context-ribbon { top: calc(var(--header-height) + 158px); }
   .map-reading-dock {
     right: 22px;
     left: auto;
@@ -3344,6 +3399,7 @@ body.tour-active .map-shop-marker.is-search-result::after {
     min-width: 0;
     transform: none;
   }
+  .map-context-ribbon { top: calc(var(--header-height) + 158px); }
   .xiang-time-ribbon { grid-template-columns: 112px minmax(0, 1fr); }
   .xiang-time-copy > small,
   .xiang-time-copy p,

@@ -29,6 +29,21 @@ const SHOP_LIST_PAGE_SIZE = 48;
 const INDIVIDUAL_MARKER_ZOOM = 17;
 const SEARCH_RESULT_MARKER_LIMIT = 12;
 
+// 道路原始数据没有道路名称字段，因此补充一组经过人工校核的城市道路锚点。
+// 它们使用少量 HTML Marker，而不是额外绘制大量 symbol 图层，避免在三维白模上
+// 产生字形资源请求或显著增加渲染负担。
+const ROAD_NAME_LABELS = [
+  { name: "麓山南路", coordinates: [112.93955, 28.17862], level: "primary" },
+  { name: "登高路", coordinates: [112.93608, 28.18132], level: "primary" },
+  { name: "桃子湖路", coordinates: [112.94418, 28.18668], level: "primary" },
+  { name: "学堂坡", coordinates: [112.94882, 28.19065], level: "primary" },
+  { name: "麓山路", coordinates: [112.94498, 28.19512], level: "primary" },
+  { name: "新民路", coordinates: [112.94856, 28.19866], level: "secondary" },
+  { name: "潇湘中路", coordinates: [112.94984, 28.19572], level: "primary" },
+  { name: "枫林一路", coordinates: [112.94346, 28.20112], level: "secondary" },
+];
+let roadNameMarkers = [];
+
 const shopClusterLayerIds = [
   "shop-cluster-halo",
   "shop-clusters",
@@ -1701,6 +1716,38 @@ const map = new maplibregl.Map({
 });
 window.culturalMap = map;
 
+function refreshRoadNameLabels() {
+  const zoom = map.getZoom();
+  const tourActive = document.body.classList.contains("tour-active");
+  roadNameMarkers.forEach(({ marker, level }) => {
+    const visible =
+      !tourActive &&
+      (zoom >= 16.15 || (zoom >= 15.25 && level === "primary"));
+    marker.getElement().classList.toggle("is-hidden", !visible);
+  });
+}
+
+function initRoadNameLabels() {
+  if (roadNameMarkers.length) return;
+  roadNameMarkers = ROAD_NAME_LABELS.map((road) => {
+    const element = document.createElement("div");
+    element.className = `road-name-marker road-name-marker--${road.level}`;
+    element.setAttribute("aria-hidden", "true");
+    element.innerHTML = `<span>${escapeHtml(road.name)}</span>`;
+    const marker = new maplibregl.Marker({
+      element,
+      anchor: "center",
+      pitchAlignment: "viewport",
+      rotationAlignment: "viewport",
+    })
+      .setLngLat(road.coordinates)
+      .addTo(map);
+    return { marker, level: road.level };
+  });
+  refreshRoadNameLabels();
+}
+window.refreshRoadNameLabels = refreshRoadNameLabels;
+
 let mapInteractionSettleTimer = null;
 function setMapPerformanceMode(interacting) {
   window.clearTimeout(mapInteractionSettleTimer);
@@ -2128,6 +2175,7 @@ map.on("load", () => {
       "line-opacity": 0.88,
     },
   });
+  initRoadNameLabels();
 
   // 4. 城市建筑：墙体、投影与屋顶薄层共同形成真实体块
   map.addSource("buildings", {
@@ -2255,8 +2303,14 @@ map.on("load", () => {
 });
 
 map.once("dragstart", dismissStoryCard);
-map.on("zoomend", refreshShopClusters);
-map.on("moveend", refreshShopClusters);
+map.on("zoomend", () => {
+  refreshShopClusters();
+  refreshRoadNameLabels();
+});
+map.on("moveend", () => {
+  refreshShopClusters();
+  refreshRoadNameLabels();
+});
 
 // ========== 语言管理 ==========
 let currentLang = "zh";

@@ -1176,6 +1176,7 @@
 
     setTourLayersVisible(true);
     window.refreshShopClusters?.();
+    window.refreshRoadNameLabels?.();
     goToChapter(index);
   }
 
@@ -1206,6 +1207,7 @@
     clearTourAnnotations();
     interactionState.selectedAnnotationIndex = -1;
     window.refreshShopClusters?.();
+    window.refreshRoadNameLabels?.();
   }
 
   function toggleTour() {
