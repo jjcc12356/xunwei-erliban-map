@@ -30,7 +30,7 @@ const INDIVIDUAL_MARKER_ZOOM = 17;
 const SEARCH_RESULT_MARKER_LIMIT = 12;
 
 // 从原始 roads.geojson 的真实路名及线段投影生成，精简道路文件不含 name。
-// 仅 8 个本地字体 Marker；不加载整份原始道路，也不请求在线字形服务。
+// 仅加载命名道路的少量几何锚点；不加载整份原始道路，也不请求在线字形服务。
 const ROAD_NAME_LABELS = window.ROAD_NAME_LABELS || [];
 let roadNameMarkers = [];
 
@@ -1709,32 +1709,52 @@ window.culturalMap = map;
 function refreshRoadNameLabels() {
   const zoom = map.getZoom();
   const tourActive = document.body.classList.contains("tour-active");
+  if (tourActive || zoom < 14.65) {
+    roadNameMarkers.forEach(({ marker }) => marker.getElement().classList.toggle("is-hidden", true));
+    return;
+  }
   const canvasRect = map.getContainer().getBoundingClientRect();
-  // Read layout once, then apply all visibility changes together. No per-frame loop.
+  const compact = canvasRect.right - canvasRect.left <= 820;
+  const maxLabels = compact ? 7 : 14;
+  let visibleCount = 0;
+  // Batch layout reads before writes; only refresh on map/layout events, never an idle loop.
   const occupied = [...document.querySelectorAll(
-    ".header-bar, .map-story-card, .map-context-ribbon, .map-reading-dock, .sidebar, .right-panel, .map-legend, .maplibregl-ctrl-group, .map-shop-marker.is-active, .smart-search-suggestions"
+    ".header-bar, .map-story-card, .map-context-ribbon, .map-reading-dock, .sidebar, .right-panel, .map-legend, .maplibregl-ctrl-group, .map-shop-marker.is-active, .smart-search-suggestions, .city-tour-panel.is-visible, .tour-place-photo.is-visible, .tour-map-annotation"
   )].flatMap(element => {
     const style = getComputedStyle(element);
     const rect = element.getBoundingClientRect();
     return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0.1 && rect.width && rect.height ? [rect] : [];
   });
   const overlaps = (a, b) => a.left < b.right + 8 && a.right > b.left - 8 && a.top < b.bottom + 8 && a.bottom > b.top - 8;
-  const updates = roadNameMarkers.map(({ marker, level }) => {
-    const point = map.project(marker.getLngLat());
+  const updates = roadNameMarkers.map(({ marker, level, candidates }) => {
     const element = marker.getElement();
     const width = element.offsetWidth, height = element.offsetHeight;
-    const rect = { left: canvasRect.left + point.x - width / 2, right: canvasRect.left + point.x + width / 2,
-      top: canvasRect.top + point.y - height / 2, bottom: canvasRect.top + point.y + height / 2 };
-    const visible = Number.isFinite(point.x) && Number.isFinite(point.y) &&
-      !tourActive &&
-      (zoom >= 16.15 || (zoom >= 15.25 && level === "primary")) &&
-      rect.left >= canvasRect.left + 8 && rect.right <= canvasRect.right - 8 &&
-      rect.top >= canvasRect.top + 8 && rect.bottom <= canvasRect.bottom - 8 &&
-      !occupied.some(other => overlaps(rect, other));
-    if (visible) occupied.push(rect);
-    return { element, visible };
+    let placement = null;
+    if (!tourActive && visibleCount < maxLabels && zoom >= (level === "primary" ? 14.65 : 16)) {
+      // Try the current anchor first to keep a stable label while moving, then real points on the same road.
+      for (const coordinates of [marker.getLngLat(), ...(candidates || [])]) {
+        const point = map.project(coordinates);
+        if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) continue;
+        const rect = { left: canvasRect.left + point.x - width / 2, right: canvasRect.left + point.x + width / 2,
+          top: canvasRect.top + point.y - height / 2, bottom: canvasRect.top + point.y + height / 2 };
+        if (rect.left < canvasRect.left + 8 || rect.right > canvasRect.right - 8 ||
+            rect.top < canvasRect.top + 8 || rect.bottom > canvasRect.bottom - 8 ||
+            occupied.some(other => overlaps(rect, other))) continue;
+        placement = coordinates;
+        occupied.push(rect);
+        visibleCount++;
+        break;
+      }
+    }
+    return { element, marker, placement };
   });
-  updates.forEach(({ element, visible }) => element.classList.toggle("is-hidden", !visible));
+  updates.forEach(({ element, marker, placement }) => {
+    if (placement) {
+      const current = marker.getLngLat();
+      if (Array.isArray(placement) && (current.lng !== placement[0] || current.lat !== placement[1])) marker.setLngLat(placement);
+    }
+    element.classList.toggle("is-hidden", !placement);
+  });
 }
 
 let roadLabelRefreshFrame = 0;
@@ -1752,6 +1772,7 @@ function initRoadNameLabels() {
     const element = document.createElement("div");
     element.className = `road-name-marker is-hidden road-name-marker--${road.level}`;
     element.setAttribute("aria-hidden", "true");
+    element.dataset.roadName = road.name;
     element.innerHTML = `<span>${escapeHtml(road.name)}</span>`;
     const marker = new maplibregl.Marker({
       element,
@@ -1761,10 +1782,17 @@ function initRoadNameLabels() {
     })
       .setLngLat(road.coordinates)
       .addTo(map);
-    return { marker, level: road.level };
+    return { marker, level: road.level, candidates: road.candidates };
   });
   scheduleRoadNameLabels();
   map.on("resize", scheduleRoadNameLabels);
+  let lastMoveRefresh = 0;
+  map.on("move", () => {
+    const now = performance.now();
+    if (now - lastMoveRefresh < 100) return;
+    lastMoveRefresh = now;
+    scheduleRoadNameLabels();
+  });
   const layoutObserver = new MutationObserver(scheduleRoadNameLabels);
   layoutObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
   document.body.addEventListener("transitionend", event => {

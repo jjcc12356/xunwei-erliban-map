@@ -26,12 +26,12 @@ body::before {
   z-index: 1200;
   pointer-events: none;
   content: "";
-  opacity: 0.13;
+  opacity: 0.055;
   background-image:
     radial-gradient(circle at 20% 30%, rgba(102, 76, 50, 0.24) 0 0.45px, transparent 0.7px),
     radial-gradient(circle at 70% 60%, rgba(102, 76, 50, 0.18) 0 0.45px, transparent 0.7px);
   background-size: 5px 5px, 7px 7px;
-  mix-blend-mode: multiply;
+  /* No full-screen blend pass over the animated map. */
 }
 
 body.evening {
@@ -66,15 +66,15 @@ body.evening .xiang-time-copy em {
   text-shadow: 0 1px 8px rgba(8, 13, 12, 0.5);
 }
 
-body[data-day-period="dawn"] #map { filter: saturate(0.86) brightness(1.03) contrast(0.98); }
-body[data-day-period="dusk"] #map { filter: saturate(0.98) sepia(0.06) brightness(1.01); }
-body[data-day-period="night"] #map { filter: saturate(0.82) brightness(0.88) contrast(1.08); }
-body[data-xiang-time="mao"] #map { filter: saturate(0.88) sepia(0.03) brightness(1.045); }
-body[data-xiang-time="you"] #map,
-body[data-xiang-time="xu"] #map { filter: saturate(0.96) sepia(0.1) brightness(0.94) contrast(1.04); }
-body[data-xiang-time="zi"] #map,
-body[data-xiang-time="chou"] #map,
-body[data-xiang-time="hai"] #map { filter: saturate(0.76) brightness(0.84) contrast(1.1); }
+body[data-day-period="dawn"] { --scene-filter: saturate(0.86) brightness(1.03) contrast(0.98); }
+body[data-day-period="dusk"] { --scene-filter: saturate(0.98) sepia(0.06) brightness(1.01); }
+body[data-day-period="night"] { --scene-filter: saturate(0.82) brightness(0.88) contrast(1.08); }
+body[data-xiang-time="mao"] { --scene-filter: saturate(0.88) sepia(0.03) brightness(1.045); }
+body[data-xiang-time="you"],
+body[data-xiang-time="xu"] { --scene-filter: saturate(0.96) sepia(0.1) brightness(0.94) contrast(1.04); }
+body[data-xiang-time="zi"],
+body[data-xiang-time="chou"],
+body[data-xiang-time="hai"] { --scene-filter: saturate(0.76) brightness(0.84) contrast(1.1); }
 
 /* Header */
 .header-bar {
@@ -217,8 +217,9 @@ body[data-xiang-time="hai"] #map { filter: saturate(0.76) brightness(0.84) contr
   background: var(--paper);
 }
 
-#map {
-  filter: saturate(0.94) contrast(1.02);
+#map .maplibregl-canvas {
+  /* Markers live inside canvas-container too; filter only the actual WebGL canvas. */
+  filter: var(--scene-filter, saturate(0.94) contrast(1.02)) brightness(var(--tour-brightness, 1)) saturate(var(--tour-saturation, 1));
   transition: filter 0.6s ease;
 }
 
@@ -236,33 +237,37 @@ body[data-xiang-time="hai"] #map { filter: saturate(0.76) brightness(0.84) contr
 
 .road-name-marker span {
   display: block;
-  padding: 3px 8px 4px;
+  padding: 10px 6px;
   color: #6d362c;
   border: 1px solid rgba(115, 71, 48, .22);
-  border-radius: 2px 9px 2px 9px;
-  background: rgba(250, 246, 237, .84);
-  box-shadow: 0 4px 13px rgba(73, 49, 34, .12);
+  border-top: 2px solid #8f3428;
+  border-radius: 2px 2px 7px 2px;
+  background: rgba(250, 246, 237, .96);
+  box-shadow: 0 2px 6px rgba(73, 49, 34, .1);
   font-family: "FZKai-Z03", "STKaiti", "KaiTi", serif;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: 1.5px;
   line-height: 1;
   text-shadow: 0 1px rgba(255, 250, 240, .72);
   white-space: nowrap;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
 }
 
 .road-name-marker--secondary span {
   color: #4e7068;
   border-color: rgba(65, 103, 94, .2);
-  background: rgba(242, 247, 240, .8);
-  font-size: 11px;
+  border-top-color: #557b70;
+  background: rgba(242, 247, 240, .96);
+  font-size: 14px;
   font-weight: 500;
 }
 
 body.evening .road-name-marker span {
   color: #f1cfac;
   border-color: rgba(233, 203, 163, .28);
-  background: rgba(38, 48, 45, .78);
+  background: rgba(38, 48, 45, .96);
   box-shadow: 0 5px 16px rgba(0, 0, 0, .25);
   text-shadow: 0 1px rgba(0, 0, 0, .35);
 }
@@ -274,11 +279,13 @@ body.evening .road-name-marker--secondary span { color: #b8dbcb; }
 }
 
 body.tour-active[data-tour-photo-layout] .maplibregl-canvas {
-  filter: brightness(.86) saturate(.78) contrast(1.035);
+  --tour-brightness: .86;
+  --tour-saturation: .78;
 }
 
 body.tour-active[data-tour-photo-layout="river"] .maplibregl-canvas {
-  filter: brightness(.9) saturate(.82) contrast(1.025);
+  --tour-brightness: .9;
+  --tour-saturation: .82;
 }
 
 #waterMotionCanvas {
@@ -536,7 +543,7 @@ body.evening .ambient-weather-canvas {
   left: 50%;
   z-index: 13;
   display: grid;
-  grid-template-columns: auto auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
   gap: 8px 16px;
   width: min(600px, calc(100vw - 700px));
@@ -659,7 +666,7 @@ body.evening .ambient-weather-canvas {
 .xiang-time-ribbon {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: minmax(172px, .72fr) minmax(286px, 1.28fr);
+  grid-template-columns: minmax(0, .72fr) minmax(0, 1.28fr);
   align-items: center;
   gap: 10px;
   padding: 8px 8px 7px;
@@ -1830,8 +1837,8 @@ body.evening .city-tour-meta em {
   color: #bcb2a2;
 }
 
-body.evening #map {
-  filter: saturate(0.9) brightness(1.01) contrast(1.03);
+body.evening:not([data-xiang-time]):not([data-day-period]) {
+  --scene-filter: saturate(0.9) brightness(1.01) contrast(1.03);
 }
 
 .maplibregl-canvas {
@@ -3696,6 +3703,99 @@ body.tour-active .map-shop-marker.is-search-result::after {
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
+  }
+}
+
+/* 2026-09: quieter paper surfaces, readable type, reserved map space. */
+.header-bar,
+.map-story-card,
+.map-reading-dock,
+.city-tour-panel,
+.map-context-ribbon {
+  background: linear-gradient(120deg, color-mix(in srgb, var(--gold) 5%, transparent), transparent 65%), var(--surface-strong);
+  backdrop-filter: none;
+  box-shadow: 0 8px 24px var(--shadow);
+}
+body.evening .city-tour-panel,
+body.evening .map-context-ribbon { background-color: var(--surface-strong); }
+.map-story-card p { font-size: 16px; line-height: 1.8; }
+.city-tour-panel > p { font-size: 16px; line-height: 1.75; }
+.nav-item, .reading-mode-button { font-size: 14px; }
+.reading-mode-title { display: none; }
+.reading-mode-group, .city-time-control { min-width: 0; }
+.city-time-control { grid-template-columns: 32px 50px minmax(0, 1fr); }
+.xiang-time-track { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.xiang-time-track button { min-height: 40px; }
+.xiang-time-track button span, .xiang-time-copy strong { font-size: 14px; }
+.xiang-time-track button small { font-size: 10px; }
+.city-tour-meta, .city-tour-note, .tour-place-photo a { font-size: 13px; }
+.city-tour-panel {
+  max-height: calc(100dvh - var(--header-height) - 60px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold) transparent;
+}
+:where(button, a, input, select):focus-visible {
+  outline: 2px solid var(--cinnabar);
+  outline-offset: 3px;
+}
+.map-reading-dock button:focus-visible, .nav-item:focus-visible {
+  outline: 2px solid var(--cinnabar);
+  outline-offset: 2px;
+}
+@media (min-width: 821px) {
+  .city-tour-panel {
+    right: 24px;
+    left: auto;
+    width: min(410px, calc(100vw - 450px));
+    transform: translateY(calc(100% + 48px));
+  }
+  .city-tour-panel.is-visible { transform: translateY(0); }
+  .tour-place-photo[data-layout="campus"] { left: 24px; right: auto; }
+  .tour-place-photo[data-layout="street"] {
+    left: 24px;
+    width: min(760px, calc(100vw - 490px));
+    transform: translateY(20px) scale(.98);
+  }
+  .tour-place-photo[data-layout="street"].is-visible { transform: translateY(0) scale(1); }
+  body[data-tour-photo-layout="river"] .city-tour-panel {
+    max-height: calc(100dvh - var(--header-height) - 280px);
+  }
+}
+@media (min-width: 821px) and (max-width: 1399px) {
+  .map-reading-dock { grid-template-columns: minmax(0, 1fr) 120px; gap: 8px; }
+  .city-time-control { grid-template-columns: 32px minmax(0, 1fr); }
+  .city-time-control label { display: none; }
+  .reading-mode-button { padding-inline: 6px; gap: 3px; }
+  .xiang-time-ribbon { grid-template-columns: 1fr; gap: 6px; }
+  .xiang-time-copy { display: block; }
+  .xiang-time-copy > small, .xiang-time-copy p, .xiang-time-copy em { display: none; }
+  .map-context-ribbon { top: calc(var(--header-height) + 190px); }
+}
+@media (max-width: 820px) {
+  .map-wrapper { height: calc(100dvh - var(--header-height)); }
+  .right-panel { height: calc(100dvh - var(--header-height) - 16px); }
+  .map-story-card { max-height: calc(100dvh - var(--header-height) - 290px); overflow-y: auto; }
+  .map-story-card h1 { font-size: 27px; }
+  .map-story-card p { font-size: 14px; margin-block: 10px; }
+  .city-time-control { grid-template-columns: 32px minmax(0, 1fr); }
+  .xiang-time-ribbon { grid-template-columns: 1fr; gap: 4px; }
+  .xiang-time-copy { text-align: left; }
+  .xiang-time-track button { min-height: 34px; }
+  .city-tour-panel, body[data-tour-photo-layout="river"] .city-tour-panel {
+    max-height: calc(100dvh - var(--header-height) - 320px);
+  }
+  .city-tour-panel > p { font-size: 14px; }
+  .tour-place-photo a { font-size: 12px; }
+}
+@media (max-width: 480px) {
+  .map-reading-dock { bottom: 184px; }
+  .map-story-card { padding: 16px; max-height: calc(100dvh - var(--header-height) - 350px); }
+}
+@media (max-width: 820px) and (max-height: 700px) {
+  .city-tour-panel, body[data-tour-photo-layout="river"] .city-tour-panel {
+    max-height: calc(100dvh - var(--header-height) - 236px);
   }
 }
 
