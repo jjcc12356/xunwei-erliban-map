@@ -79,3 +79,15 @@ for (const [name, segments] of localSegments) {
 const output = fileURLToPath(new URL('../public/map/road-labels.js', import.meta.url));
 writeFileSync(output, '// Generated from original roads.geojson name + geometry; do not hand-edit anchors.\nwindow.ROAD_NAME_LABELS = ' + JSON.stringify(labels) + ';\n');
 console.log(`Generated ${labels.length} geometry-aligned road labels (${output}).`);
+// A separate, lazy-loaded selection layer: never bring the full city road source into startup.
+const namedRoads = { type: 'FeatureCollection', features: labels.map(label => {
+  const lines = [];
+  for (const { a, b } of localSegments.get(label.name) || []) {
+    if (label.level === 'primary' && distance(label.coordinates, a) > 0.014) continue;
+    const start = round(a), end = round(b), last = lines.at(-1);
+    if (last && last.at(-1)[0] === start[0] && last.at(-1)[1] === start[1]) last.push(end);
+    else lines.push([start, end]);
+  }
+  return { type: 'Feature', properties: { name: label.name }, geometry: { type: 'MultiLineString', coordinates: lines } };
+}) };
+writeFileSync(new URL('../public/map/geojson/named-roads.geojson', import.meta.url), JSON.stringify(namedRoads));

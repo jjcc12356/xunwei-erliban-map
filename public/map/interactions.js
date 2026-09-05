@@ -983,6 +983,7 @@
     figure.classList.add("is-visible");
     figure.classList.remove("is-loading", "is-ready", "is-error");
     figure.setAttribute("aria-hidden", "false");
+    figure.inert = false;
     document.getElementById("tourPlacePhotoChapter").textContent =
       `${chapter.number} · ${chapter.meta} · 本章影像 ${gallery.length} 帧`;
     document.getElementById("tourPhotoLayoutBadge").textContent =
@@ -1153,6 +1154,7 @@
 
   function startTour(index = 0) {
     if (!interactionState.map) return;
+    window.mapReader?.clearRoad();
     setupTourLayers();
     hideGestureHint();
     document.getElementById("mapStoryCard")?.classList.add("is-dismissed");
@@ -1167,6 +1169,7 @@
     const panel = document.getElementById("cityTourPanel");
     panel?.classList.add("is-visible");
     panel?.setAttribute("aria-hidden", "false");
+    if (panel) panel.inert = false;
     const toggle = document.getElementById("cityTourToggle");
     toggle?.setAttribute("aria-pressed", "true");
     toggle?.setAttribute("title", "结束城市漫游");
@@ -1191,10 +1194,12 @@
     const panel = document.getElementById("cityTourPanel");
     panel?.classList.remove("is-visible");
     panel?.setAttribute("aria-hidden", "true");
+    if (panel) panel.inert = true;
     const photo = document.getElementById("tourPlacePhoto");
     photo?.classList.remove("is-visible", "is-loading", "is-ready", "is-error");
     photo?.classList.remove("is-layout-changing");
     photo?.setAttribute("aria-hidden", "true");
+    if (photo) photo.inert = true;
     delete document.body.dataset.tourPhotoLayout;
     const toggle = document.getElementById("cityTourToggle");
     toggle?.setAttribute("aria-pressed", "false");

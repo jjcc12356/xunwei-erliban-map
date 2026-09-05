@@ -27,7 +27,8 @@ jobs:
         run: |
           node --check public/map/main.js
           node --check public/map/interactions.js
-          node --test scripts/road-labels.test.mjs
+          node --check public/map/map-reading.js
+          node --test scripts/*.test.mjs
       - name: 准备静态地图与分享封面
         run: |
           mkdir _site

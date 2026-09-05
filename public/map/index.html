@@ -26,7 +26,7 @@
     <link rel="stylesheet" href="css/style.css?v=20260830-1" />
     <link rel="stylesheet" href="css/menu.css?v=20260830-1" />
     <link rel="stylesheet" href="css/shopOverview.css?v=20260830-1" />
-    <link rel="stylesheet" href="css/design-system.css?v=20260905-1" />
+    <link rel="stylesheet" href="css/design-system.css?v=20260905-2" />
 
     <link rel="preconnect" href="https://fontsapi.zeoseven.com" crossorigin />
     <link rel="preconnect" href="https://cdn.staticfile.org" crossorigin />
@@ -67,7 +67,13 @@
       </button>
     </section>
 
-    <figure class="tour-place-photo" id="tourPlacePhoto" data-layout="landmark" aria-hidden="true">
+    <div class="map-orientation-tools" aria-label="地图视角">
+      <button type="button" data-map-view-button="2d" aria-pressed="false">二维定位</button>
+      <button type="button" data-map-view-button="3d" aria-pressed="true">三维赏景</button>
+      <button type="button" id="mapNorthReset" aria-label="地图朝北复位">朝北 ↑</button>
+    </div>
+
+    <figure class="tour-place-photo" id="tourPlacePhoto" data-layout="landmark" aria-hidden="true" inert>
       <div class="tour-photo-collage" id="tourPhotoCollage" aria-label="本章影像，可点击副图切换主画面">
         <span class="tour-photo-layout-badge" id="tourPhotoLayoutBadge">地标细读</span>
         <button class="tour-photo-cell is-main" type="button" data-photo-index="0" aria-label="查看第一幅影像">
@@ -152,7 +158,7 @@
       <p class="reading-mode-note" id="readingModeNote" aria-live="polite">看山形、水势与岳麓青岚</p>
     </section>
 
-    <section class="city-tour-panel" id="cityTourPanel" aria-hidden="true" aria-live="polite">
+    <section class="city-tour-panel" id="cityTourPanel" aria-hidden="true" aria-live="polite" inert>
       <button class="city-tour-close" id="cityTourClose" type="button" aria-label="结束城市漫游">✕</button>
       <div class="city-tour-seal" aria-hidden="true">游</div>
       <div class="city-tour-heading">
@@ -327,23 +333,24 @@
     </aside>
 
     <!-- 右侧信息面板 -->
-    <div class="right-panel" id="rightPanel" aria-hidden="true">
+    <div class="right-panel" id="rightPanel" aria-hidden="true" inert aria-labelledby="panelTitle">
       <div class="panel-header">
         <div class="panel-logo">
           <span class="panel-logo-icon"></span>
-          <h3 id="panelTitle">店铺名称</h3>
+          <h3 id="panelTitle" tabindex="-1">店铺名称</h3>
         </div>
+        <button id="panelCollapse" class="panel-collapse" type="button" aria-expanded="true" aria-controls="readingPanelContent">收起</button>
         <button class="panel-close" id="panelClose" type="button" aria-label="关闭面板">✕</button>
       </div>
-      <div class="panel-content">
+      <div class="panel-content" id="readingPanelContent">
         <div class="content-block" data-id="1">
           <div class="shop-overview-wrap-outer">
             <div class="search-wrapper">
               <input
                 id="shopSearchInput"
                 type="search"
-                placeholder="店名 / 拼音 / 奶茶 / 夜宵 / 适合拍照"
-                aria-label="搜索店铺"
+                placeholder="道路名 / 店名 / 拼音 / 奶茶 / 夜宵"
+                aria-label="搜索道路或店铺"
                 aria-controls="shopSearchSuggestions"
                 aria-autocomplete="list"
                 autocomplete="off"
@@ -377,6 +384,10 @@
               hidden
             ></div>
 
+            <div id="roadSelection" class="road-selection" hidden>
+              <p id="roadSelectionStatus" role="status"></p>
+              <button id="clearRoadSelection" type="button">清除道路</button>
+            </div>
             <div class="smart-search-actions" aria-label="智能搜索方式">
               <button id="searchNearby" type="button" aria-pressed="false">
                 <i class="fa fa-location-arrow" aria-hidden="true"></i>
@@ -384,7 +395,7 @@
               </button>
               <button id="searchAlongRoute" type="button" aria-pressed="false">
                 <i class="fa fa-road" aria-hidden="true"></i>
-                <span>沿路线</span>
+                <span>示意线附近</span>
               </button>
               <button id="createSearchRoute" type="button" disabled>
                 <i class="fa fa-map-signs" aria-hidden="true"></i>
@@ -490,9 +501,10 @@
     <!-- JS放末尾！！ -->
     <script defer src="search-index.js?v=20260901-1"></script>
     <script defer src="effects.js?v=20260831-2"></script>
-    <script defer src="interactions.js?v=20260902-1"></script>
+    <script defer src="interactions.js?v=20260905-2"></script>
     <script defer src="road-labels.js?v=20260905-1"></script>
-    <script defer src="main.js?v=20260905-1"></script>
+    <script defer src="map-reading.js?v=20260905-2"></script>
+    <script defer src="main.js?v=20260905-2"></script>
     <script defer src="experience.js?v=20260831-2"></script>
   </body>
 </html>

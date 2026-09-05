@@ -428,14 +428,23 @@ function dismissStoryCard() {
   document.getElementById("mapStoryCard")?.classList.add("is-dismissed");
 }
 
+let panelReturnFocus = null;
 function setRightPanelOpen(open) {
   const panel = document.getElementById("rightPanel");
   if (!panel) return;
   const nextOpen = Boolean(open);
+  const wasOpen = panel.classList.contains("open");
+  if (nextOpen && !wasOpen) panelReturnFocus = document.activeElement;
   if (nextOpen && document.body.classList.contains("tour-active")) {
     window.stopCulturalTour?.();
   }
   panel.classList.toggle("open", nextOpen);
+  panel.classList.remove("is-collapsed");
+  panel.inert = !nextOpen;
+  if (!nextOpen) window.mapReader?.cancelPending();
+  const collapse = document.getElementById("panelCollapse");
+  collapse?.setAttribute("aria-expanded", "true");
+  if (collapse) collapse.textContent = "收起";
   panel.setAttribute("aria-hidden", String(!nextOpen));
   document.body.classList.toggle("panel-open", nextOpen);
   if (nextOpen) dismissStoryCard();
@@ -443,6 +452,8 @@ function setRightPanelOpen(open) {
     document.querySelectorAll(".menu-item").forEach((item) => item.classList.remove("active"));
   }
   refreshShopClusters();
+  if (nextOpen && !wasOpen) document.getElementById("panelTitle")?.focus({ preventScroll: true });
+  if (!nextOpen && wasOpen && panelReturnFocus?.isConnected) panelReturnFocus.focus({ preventScroll: true });
 }
 
 window.setCulturalPanelOpen = setRightPanelOpen;
@@ -459,15 +470,16 @@ function openShopFeature(feature, duration = 1200) {
   activateFeatureMarker(feature);
   dismissStoryCard();
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  togglePopup(2);
   map.flyTo({
     center: coordinates,
     zoom: 18,
-    pitch: 60,
+    pitch: document.body.dataset.mapView === "2d" ? 0 : 60,
     bearing: 0,
     duration: reduceMotion ? 0 : duration,
     essential: false,
+    offset: window.mapReader?.offset() || [0, 0],
   });
-  togglePopup(2);
   fillShopDetail(feature.properties);
 }
 
@@ -520,13 +532,12 @@ function renderNearbyDiscoveries(shopProps) {
       const category = feature._category === "food" ? "food" : "entertain";
       const meta = getPlaceCoverMeta(properties, category);
       const featureIndex = allShopFeatures.indexOf(feature);
-      const walkMinutes = Math.max(1, Math.round(distance / 75));
       return `
-        <button class="nearby-place" type="button" data-feature-index="${featureIndex}" aria-label="前往${escapeHtml(meta.name)}，步行约${walkMinutes}分钟">
+        <button class="nearby-place" type="button" data-feature-index="${featureIndex}" aria-label="查看${escapeHtml(meta.name)}，直线距离${formatNearbyDistance(distance)}">
           <i class="nearby-place-seal nearby-place-seal--${category}" aria-hidden="true">${meta.glyph}</i>
           <span>
             <strong>${escapeHtml(meta.name)}</strong>
-            <small>${escapeHtml(meta.type)} · 步行约 ${walkMinutes} 分钟</small>
+            <small>${escapeHtml(meta.type)} · 直线距离，仅供参考</small>
           </span>
           <em>${formatNearbyDistance(distance)}</em>
         </button>
@@ -1058,14 +1069,14 @@ function fitSearchResults(features) {
     .filter(Array.isArray);
   if (!coordinates.length) return;
   if (coordinates.length === 1) {
-    map.easeTo({ center: coordinates[0], zoom: 17.2, duration: 800 });
+    map.easeTo({ center: coordinates[0], zoom: 17.2, duration: 800, offset: window.mapReader?.offset() || [0, 0] });
     return;
   }
   const bounds = coordinates.reduce(
     (nextBounds, point) => nextBounds.extend(point),
     new maplibregl.LngLatBounds(coordinates[0], coordinates[0]),
   );
-  map.fitBounds(bounds, { padding: 96, maxZoom: 17.2, duration: 900 });
+  map.fitBounds(bounds, { padding: window.mapReader?.padding() || 96, maxZoom: 17.2, duration: 900 });
 }
 
 function updateSmartSearchActions() {
@@ -1082,7 +1093,7 @@ function renderSearchSuggestions(scored, intent) {
   const suggestions = document.getElementById("shopSearchSuggestions");
   if (!suggestions) return;
   const hasInput = Boolean(currentSearchKeyword.trim());
-  if (!hasInput) {
+  if (!hasInput || currentSearchMode === "road") {
     suggestions.hidden = true;
     suggestions.innerHTML = "";
     return;
@@ -1091,6 +1102,8 @@ function renderSearchSuggestions(scored, intent) {
     ? `<div class="search-intent-hint"><span>已读懂</span>${intent.tags.map((tag) => `<em>${escapeHtml(tag.label)}</em>`).join("")}${intent.near ? "<em>按距离</em>" : ""}</div>`
     : "";
   const inputToken = normalizeSearchToken(currentSearchKeyword);
+  const roadHints = (window.MapReading?.findRoads(currentSearchKeyword) || [])
+    .map(road => `<button class="search-suggestion search-suggestion--road" type="button" data-road-name="${escapeHtml(road.name)}"><b>路</b><span><strong>${escapeHtml(road.name)}</strong><small>高亮道路 · 查看道路附近地点</small></span></button>`).join("");
   const categoryHints = SMART_SEARCH_TAGS.filter((tag) =>
     tag.queries.some((query) => {
       const queryToken = normalizeSearchToken(query);
@@ -1110,7 +1123,7 @@ function renderSearchSuggestions(scored, intent) {
   const routeHint = scored.length >= 2
     ? `<button class="search-suggestion search-suggestion--route" type="button" data-search-command="route"><i class="fa fa-map-signs" aria-hidden="true"></i><span><strong>路线建议</strong><small>把前几处串成一段短途漫游</small></span></button>`
     : "";
-  suggestions.innerHTML = `${tagHint}${categoryHints}${places}${routeHint || (!places ? '<div class="search-no-suggestion">换个说法试试，支持拼音与近似店名</div>' : "")}`;
+  suggestions.innerHTML = `${roadHints}${tagHint}${categoryHints}${places}${routeHint || (!places && !roadHints ? '<div class="search-no-suggestion">换个说法试试，可搜索道路、拼音与近似店名</div>' : "")}`;
   suggestions.hidden = false;
 }
 
@@ -1125,7 +1138,13 @@ function applyShopOverviewFilters(options = {}) {
         (currentOverviewFilter === "entertain" && !isFoodFeature(feature))
       );
     })
-    .map((feature) => scoreSearchFeature(feature, intent))
+    .map((feature) => {
+      if (currentSearchMode === "road" && window.mapReader?.selectedRoad) {
+        const distance = window.MapReading.distanceToRoad(feature.geometry.coordinates, window.mapReader.selectedRoad);
+        return distance <= 120 ? { feature, score: -distance, distance, business: getBusinessState(feature), matchedTags: [] } : null;
+      }
+      return scoreSearchFeature(feature, intent);
+    })
     .filter(Boolean);
 
   if (searchActive) {
@@ -1170,19 +1189,30 @@ function initShopSearch() {
   if (!input || !searchButton || !clearButton) return;
 
   const runSearch = (focusMap = false) => {
+    window.clearTimeout(searchTimer);
     currentSearchKeyword = input.value;
     clearButton.hidden = !input.value && currentSearchMode === "default";
+    const exactRoad = window.MapReading?.findRoads(input.value).find(road => road.name === input.value.trim());
+    if (focusMap && exactRoad && window.mapReader) {
+      window.mapReader.selectRoad(exactRoad.name);
+      return;
+    }
     applyShopOverviewFilters({ focusMap });
+    if (focusMap) suggestions.hidden = true;
   };
 
   let searchTimer = null;
   input.addEventListener("input", () => {
+    window.mapReader?.clearRoad();
     currentSearchMode = "default";
     window.clearTimeout(searchTimer);
     searchTimer = window.setTimeout(() => runSearch(false), 110);
   });
   input.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
+    if (event.key === "ArrowDown" && !suggestions.hidden) {
+      event.preventDefault();
+      suggestions.querySelector("button")?.focus();
+    } else if (event.key === "Enter") {
       event.preventDefault();
       suggestions?.setAttribute("hidden", "");
       runSearch(true);
@@ -1199,6 +1229,7 @@ function initShopSearch() {
     input.focus();
   });
   clearButton.addEventListener("click", () => {
+    window.mapReader?.clearRoad();
     input.value = "";
     currentSearchMode = "default";
     searchOrigin = null;
@@ -1207,6 +1238,13 @@ function initShopSearch() {
     input.focus();
   });
   suggestions?.addEventListener("click", (event) => {
+    const roadName = event.target.closest("[data-road-name]")?.dataset.roadName;
+    if (roadName) {
+      window.clearTimeout(searchTimer);
+      suggestions.hidden = true;
+      window.mapReader?.selectRoad(roadName);
+      return;
+    }
     const command = event.target.closest("[data-search-command]")?.dataset.searchCommand;
     if (command === "route") {
       createShortTourRoute();
@@ -1231,6 +1269,14 @@ function initShopSearch() {
     applyShopOverviewFilters();
     openShopFeature(feature, 850);
   });
+  suggestions?.addEventListener("keydown", event => {
+    if (event.key === "Escape") { event.stopPropagation(); input.focus(); suggestions.hidden = true; return; }
+    if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
+    event.preventDefault();
+    const buttons = [...suggestions.querySelectorAll("button")];
+    const index = buttons.indexOf(document.activeElement);
+    buttons[(index + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length]?.focus();
+  });
   // Use click rather than pointerdown: collapsing the suggestion list while the
   // pointer is still held would move the action buttons and cause click-through.
   document.addEventListener("click", (event) => {
@@ -1240,6 +1286,8 @@ function initShopSearch() {
   });
 
   document.getElementById("searchNearby")?.addEventListener("click", () => {
+    if (currentSearchMode === "road") { input.value = ""; currentSearchKeyword = ""; }
+    window.mapReader?.clearRoad();
     currentSearchMode = "nearby";
     clearButton.hidden = false;
     const useMapCenter = (notice) => {
@@ -1265,6 +1313,8 @@ function initShopSearch() {
     );
   });
   document.getElementById("searchAlongRoute")?.addEventListener("click", () => {
+    if (currentSearchMode === "road") { input.value = ""; currentSearchKeyword = ""; }
+    window.mapReader?.clearRoad();
     if (activeSmartRoute.length < 2) {
       if (!currentSearchKeyword.trim() || currentSearchResults.length < 2) {
         setSearchStatus("请先搜索一类地点，再生成短途漫游路线。");
@@ -1393,10 +1443,9 @@ function createShortTourRoute(focusMap = true) {
     (sum, point, index) => sum + distanceBetweenPlaces(activeSmartRoute[index], point),
     0,
   );
-  const walkMinutes = Math.max(3, Math.round(totalDistance / 75));
   const summary = document.getElementById("smartRouteSummary");
   if (summary) {
-    summary.innerHTML = `<span>短途漫游</span><strong>${routeFeatures.length} 站 · 约 ${formatNearbyDistance(totalDistance)} · 步行 ${walkMinutes} 分钟</strong>`;
+    summary.innerHTML = `<span>游览顺序示意 · 非步行导航</span><strong>${routeFeatures.length} 站 · 站间直线距离合计约 ${formatNearbyDistance(totalDistance)}</strong><small>连线不代表可通行道路，实际路线、出入口和距离请以现场及导航地图为准。</small>`;
     summary.hidden = false;
   }
   const clearButton = document.getElementById("clearSearchRoute");
@@ -1473,7 +1522,7 @@ function renderShopOverviewList(shopList, limit = SHOP_LIST_PAGE_SIZE) {
       .map((tag) => tag.label);
     const metaParts = [];
     if (searchActive && Number.isFinite(feature._searchDistance)) {
-      metaParts.push(formatNearbyDistance(feature._searchDistance));
+      metaParts.push(`${currentSearchMode === "road" ? "距道路" : "直线"} ${formatNearbyDistance(feature._searchDistance)}`);
     }
     if (tags.length) metaParts.push(tags.join(" / "));
     if (business.known) metaParts.push(business.label);
@@ -1719,7 +1768,7 @@ function refreshRoadNameLabels() {
   let visibleCount = 0;
   // Batch layout reads before writes; only refresh on map/layout events, never an idle loop.
   const occupied = [...document.querySelectorAll(
-    ".header-bar, .map-story-card, .map-context-ribbon, .map-reading-dock, .sidebar, .right-panel, .map-legend, .maplibregl-ctrl-group, .map-shop-marker.is-active, .smart-search-suggestions, .city-tour-panel.is-visible, .tour-place-photo.is-visible, .tour-map-annotation"
+    ".header-bar, .map-story-card, .map-context-ribbon, .map-reading-dock, .sidebar, .right-panel, .map-legend, .maplibregl-ctrl-group, .map-orientation-tools, .maplibregl-ctrl-scale, .map-shop-marker.is-active, .smart-search-suggestions, .city-tour-panel.is-visible, .tour-place-photo.is-visible, .tour-map-annotation"
   )].flatMap(element => {
     const style = getComputedStyle(element);
     const rect = element.getBoundingClientRect();
@@ -2354,6 +2403,21 @@ map.on("load", () => {
   });
 
   applyMapAmbience(currentAmbience);
+  window.initMapReading?.(map, {
+    closePanel: () => setRightPanelOpen(false),
+    clearSearch: () => document.getElementById("shopSearchClear")?.click(),
+    onRoadSelected: (name) => {
+      togglePopup(1);
+      clearSmartSearchRoute();
+      currentSearchMode = "road";
+      currentSearchKeyword = name;
+      document.getElementById("shopSearchInput").value = name;
+      document.getElementById("shopSearchClear").hidden = false;
+      const results = applyShopOverviewFilters();
+      setSearchStatus(`找到 <strong>${results.length}</strong> 处${escapeHtml(name)}附近地点 · 按距道路线形的距离排序，非门牌归属判断`);
+      return results;
+    },
+  });
   window.initCulturalMapInteractions?.(map);
   window.dispatchEvent(new CustomEvent("cultural-map-ready"));
 });
