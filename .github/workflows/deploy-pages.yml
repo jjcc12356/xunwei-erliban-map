@@ -28,6 +28,9 @@ jobs:
           node --check public/map/main.js
           node --check public/map/interactions.js
           node --check public/map/map-reading.js
+          node --check public/map/route-engine.js
+          node --check public/map/route-worker.js
+          node --check public/map/route-planner.js
           node --test scripts/*.test.mjs
       - name: 准备静态地图与分享封面
         run: |

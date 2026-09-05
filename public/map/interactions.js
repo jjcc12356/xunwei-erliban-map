@@ -1155,6 +1155,7 @@
   function startTour(index = 0) {
     if (!interactionState.map) return;
     window.mapReader?.clearRoad();
+    window.cancelPendingRoute?.();
     setupTourLayers();
     hideGestureHint();
     document.getElementById("mapStoryCard")?.classList.add("is-dismissed");

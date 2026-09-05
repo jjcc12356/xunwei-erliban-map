@@ -17,6 +17,8 @@ let currentSearchResults = [];
 let searchOrigin = null;
 let searchOriginLabel = "当前视野";
 let activeSmartRoute = [];
+let routePending = false;
+let routeRequestId = 0;
 let smartSearchRouteInitialized = false;
 let activeMarkerDom = null;
 let currentAmbience = "day";
@@ -121,7 +123,7 @@ function refreshShopClusters() {
       map.setLayoutProperty(layerId, "visibility", clustered ? "visible" : "none");
     }
   });
-  ["smart-search-route-halo", "smart-search-route-line", "smart-search-route-stops"].forEach(
+  ["smart-search-route-halo", "smart-search-route-line", "smart-search-route-stops", "smart-search-access-line"].forEach(
     (layerId) => {
       if (map.getLayer(layerId)) {
         map.setLayoutProperty(layerId, "visibility", tourActive ? "none" : "visible");
@@ -441,7 +443,7 @@ function setRightPanelOpen(open) {
   panel.classList.toggle("open", nextOpen);
   panel.classList.remove("is-collapsed");
   panel.inert = !nextOpen;
-  if (!nextOpen) window.mapReader?.cancelPending();
+  if (!nextOpen) { window.mapReader?.cancelPending(); window.cancelPendingRoute?.(); }
   const collapse = document.getElementById("panelCollapse");
   collapse?.setAttribute("aria-expanded", "true");
   if (collapse) collapse.textContent = "收起";
@@ -1084,7 +1086,8 @@ function updateSmartSearchActions() {
   const routeButton = document.getElementById("createSearchRoute");
   const nearbyButton = document.getElementById("searchNearby");
   const alongButton = document.getElementById("searchAlongRoute");
-  if (routeButton) routeButton.disabled = !active || currentSearchResults.length < 2;
+  if (routeButton) { routeButton.disabled = routePending || !active || currentSearchResults.length < 2; routeButton.setAttribute("aria-busy", String(routePending)); }
+  if (alongButton) alongButton.disabled = routePending;
   nearbyButton?.setAttribute("aria-pressed", String(currentSearchMode === "nearby"));
   alongButton?.setAttribute("aria-pressed", String(currentSearchMode === "route"));
 }
@@ -1128,6 +1131,7 @@ function renderSearchSuggestions(scored, intent) {
 }
 
 function applyShopOverviewFilters(options = {}) {
+  if (routePending) clearSmartSearchRoute();
   const intent = parseSearchIntent(currentSearchKeyword);
   const searchActive = Boolean(currentSearchKeyword.trim()) || currentSearchMode !== "default";
   const scored = allShopFeatures
@@ -1203,6 +1207,7 @@ function initShopSearch() {
 
   let searchTimer = null;
   input.addEventListener("input", () => {
+    window.cancelPendingRoute?.();
     window.mapReader?.clearRoad();
     currentSearchMode = "default";
     window.clearTimeout(searchTimer);
@@ -1286,6 +1291,7 @@ function initShopSearch() {
   });
 
   document.getElementById("searchNearby")?.addEventListener("click", () => {
+    window.cancelPendingRoute?.();
     if (currentSearchMode === "road") { input.value = ""; currentSearchKeyword = ""; }
     window.mapReader?.clearRoad();
     currentSearchMode = "nearby";
@@ -1312,7 +1318,7 @@ function initShopSearch() {
       { enableHighAccuracy: false, timeout: 5000, maximumAge: 180000 },
     );
   });
-  document.getElementById("searchAlongRoute")?.addEventListener("click", () => {
+  document.getElementById("searchAlongRoute")?.addEventListener("click", async () => {
     if (currentSearchMode === "road") { input.value = ""; currentSearchKeyword = ""; }
     window.mapReader?.clearRoad();
     if (activeSmartRoute.length < 2) {
@@ -1320,7 +1326,7 @@ function initShopSearch() {
         setSearchStatus("请先搜索一类地点，再生成短途漫游路线。");
         return;
       }
-      createShortTourRoute(false);
+      if (!await createShortTourRoute(false)) return;
     }
     currentSearchMode = "route";
     clearButton.hidden = false;
@@ -1337,7 +1343,8 @@ function initShopSearch() {
 }
 
 function ensureSmartSearchRouteLayers() {
-  if (smartSearchRouteInitialized || !map.isStyleLoaded()) return;
+  // Sources may still be repainting while the initialized style is usable.
+  if (smartSearchRouteInitialized || !map.getStyle()) return;
   map.addSource("smart-search-route", {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
@@ -1346,6 +1353,7 @@ function ensureSmartSearchRouteLayers() {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
   });
+  map.addSource("smart-search-access", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
   map.addLayer({
     id: "smart-search-route-halo",
     type: "line",
@@ -1365,7 +1373,6 @@ function ensureSmartSearchRouteLayers() {
       "line-color": "#9b4431",
       "line-width": ["interpolate", ["linear"], ["zoom"], 14, 2, 18, 3.6],
       "line-opacity": 0.88,
-      "line-dasharray": [1.5, 1.2],
     },
   });
   map.addLayer({
@@ -1379,18 +1386,23 @@ function ensureSmartSearchRouteLayers() {
       "circle-stroke-width": 2,
     },
   });
+  map.addLayer({ id: "smart-search-access-line", type: "line", source: "smart-search-access", paint: {
+    "line-color": "#ad864d", "line-width": 2, "line-dasharray": [1, 2], "line-opacity": .9,
+  } });
   smartSearchRouteInitialized = true;
 }
 
-function setSmartRouteData(routeFeatures) {
+function setSmartRouteData(routeFeatures, result) {
   ensureSmartSearchRouteLayers();
   if (!smartSearchRouteInitialized) return;
-  const coordinates = routeFeatures.map((feature) => feature.geometry.coordinates);
   map.getSource("smart-search-route")?.setData({
     type: "Feature",
     properties: {},
-    geometry: { type: "LineString", coordinates },
+    geometry: { type: "MultiLineString", coordinates: result.legs.map(leg => leg.coordinates) },
   });
+  map.getSource("smart-search-access")?.setData({ type: "FeatureCollection", features: result.access.filter(item => item.distance > 2).map(item => ({
+    type: "Feature", properties: { unverified: true }, geometry: { type: "LineString", coordinates: item.coordinates },
+  })) });
   map.getSource("smart-search-stops")?.setData({
     type: "FeatureCollection",
     features: routeFeatures.map((feature, index) => ({
@@ -1423,37 +1435,57 @@ function orderShortRoute(features) {
   return ordered;
 }
 
-function createShortTourRoute(focusMap = true) {
+async function createShortTourRoute(focusMap = true) {
+  if (routePending) return false;
   const routeFeatures = orderShortRoute(currentSearchResults);
   if (routeFeatures.length < 2) {
     setSearchStatus("至少需要两个匹配地点，才能生成短途漫游。");
-    return;
+    return false;
   }
-  activeSmartRoute = routeFeatures.map((feature) => feature.geometry.coordinates);
-  setSmartRouteData(routeFeatures);
-  allShopFeatures.forEach((feature) => {
-    feature._markerDom?.classList.remove("is-route-stop");
-    feature._markerDom?.removeAttribute("data-route-rank");
-  });
-  routeFeatures.forEach((feature, index) => {
-    feature._markerDom?.classList.add("is-route-stop");
-    feature._markerDom?.setAttribute("data-route-rank", String(index + 1));
-  });
-  const totalDistance = activeSmartRoute.slice(1).reduce(
-    (sum, point, index) => sum + distanceBetweenPlaces(activeSmartRoute[index], point),
-    0,
-  );
+  clearSmartSearchRoute();
+  const requestId = ++routeRequestId;
+  routePending = true;
   const summary = document.getElementById("smartRouteSummary");
-  if (summary) {
-    summary.innerHTML = `<span>游览顺序示意 · 非步行导航</span><strong>${routeFeatures.length} 站 · 站间直线距离合计约 ${formatNearbyDistance(totalDistance)}</strong><small>连线不代表可通行道路，实际路线、出入口和距离请以现场及导航地图为准。</small>`;
-    summary.hidden = false;
-  }
+  if (summary) { summary.hidden = false; summary.innerHTML = '<strong>正在沿收录路网连接站点…</strong><small>首次使用按需载入路网，可随时清除取消。</small>'; }
   const clearButton = document.getElementById("clearSearchRoute");
   if (clearButton) clearButton.hidden = false;
-  if (focusMap) fitSearchResults(routeFeatures);
+  updateSmartSearchActions();
+  try {
+    const result = await window.RoutePlanner.plan(routeFeatures.map(feature => feature.geometry.coordinates));
+    if (requestId !== routeRequestId) return false;
+    if (result.status !== "ok") {
+      const reason = result.status === "off-network" ? `第 ${result.stop + 1} 站附近 60 米内未找到可接入的地面路网。`
+        : result.status === "disconnected" ? `第 ${result.from + 1} 站与第 ${result.to + 1} 站之间的收录路网不连通。`
+        : '路网暂时无法计算，请稍后重试。';
+      if (summary) summary.innerHTML = `<strong>未生成完整路线</strong><small>${reason}未使用直线补齐。请换一组地点，或使用导航地图确认。</small>`;
+      return false;
+    }
+    activeSmartRoute = result.legs.flatMap(leg => leg.coordinates);
+    setSmartRouteData(routeFeatures, result);
+    routeFeatures.forEach((feature, index) => {
+      feature._markerDom?.classList.add("is-route-stop");
+      feature._markerDom?.setAttribute("data-route-rank", String(index + 1));
+    });
+    const legs = result.legs.map((leg, i) => `<li><b>${i + 1} → ${i + 2}</b> ${escapeHtml(getFeatureSearchMeta(routeFeatures[i]).name)} → ${escapeHtml(getFeatureSearchMeta(routeFeatures[i + 1]).name)}<small>${escapeHtml([...new Set(leg.roads)].slice(0, 5).join(' → '))} · ${formatNearbyDistance(leg.distance)}${leg.hasSteps ? ' · 含台阶' : ''}</small></li>`).join('');
+    if (summary) summary.innerHTML = `<span>沿收录路网 · 参考路线</span><strong>${routeFeatures.length} 站 · 路网长度约 ${formatNearbyDistance(result.distance)}</strong><small>实线沿道路线形；虚线为待确认的入口连接，不计入路网长度。校园门禁、步行权限与实时封闭信息尚未核实，请以现场为准。</small><ol class="route-leg-list">${legs}</ol>`;
+    if (focusMap) {
+      const points = activeSmartRoute.concat(routeFeatures.map(feature => feature.geometry.coordinates));
+      const bounds = points.reduce((box, point) => box.extend(point), new maplibregl.LngLatBounds(points[0], points[0]));
+      map.fitBounds(bounds, { padding: window.mapReader?.padding() || 96, maxZoom: 17.2, pitch: 0, bearing: 0, duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 850 });
+    }
+    return true;
+  } catch {
+    if (requestId === routeRequestId && summary) summary.innerHTML = '<strong>路线暂时不可用</strong><small>请稍后重试；不会用直线替代缺失路线。</small>';
+    return false;
+  } finally {
+    if (requestId === routeRequestId) { routePending = false; updateSmartSearchActions(); }
+  }
 }
 
 function clearSmartSearchRoute() {
+  routeRequestId++;
+  if (routePending) window.RoutePlanner?.cancel();
+  routePending = false;
   activeSmartRoute = [];
   allShopFeatures.forEach((feature) => {
     feature._markerDom?.classList.remove("is-route-stop");
@@ -1468,6 +1500,7 @@ function clearSmartSearchRoute() {
       type: "FeatureCollection",
       features: [],
     });
+    map.getSource("smart-search-access")?.setData({ type: "FeatureCollection", features: [] });
   }
   const summary = document.getElementById("smartRouteSummary");
   if (summary) {
@@ -1476,7 +1509,9 @@ function clearSmartSearchRoute() {
   }
   const clearButton = document.getElementById("clearSearchRoute");
   if (clearButton) clearButton.hidden = true;
+  updateSmartSearchActions();
 }
+window.cancelPendingRoute = () => { if (routePending) clearSmartSearchRoute(); };
 
 function renderShopOverviewList(shopList, limit = SHOP_LIST_PAGE_SIZE) {
   const ul = document.getElementById("shopOverviewList");

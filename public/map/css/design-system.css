@@ -3857,6 +3857,9 @@ body.tour-active .map-orientation-tools { visibility: hidden; pointer-events: no
 .search-suggestion--road b { color: var(--cinnabar); font-family: KaiTi, serif; }
 .smart-route-summary { flex-wrap: wrap; }
 .smart-route-summary small { display: block; flex-basis: 100%; font-size: 13px; line-height: 1.65; color: var(--ink-soft); }
+.route-leg-list { width: 100%; margin: 8px 0 0; padding: 0; list-style: none; }
+.route-leg-list li { padding: 8px 0; border-top: 1px solid var(--border); color: var(--ink); font-size: 14px; line-height: 1.6; }
+.route-leg-list b { color: var(--cinnabar); margin-right: 6px; }
 .maplibregl-ctrl-bottom-left { left: 8px; bottom: 2px; }
 .maplibregl-ctrl-scale { font: 12px/1.5 sans-serif; color: var(--ink); border-color: var(--ink-soft); background: var(--surface-strong); }
 body.panel-open .map-story-card, body.panel-open .map-gesture-hint { visibility: hidden; }

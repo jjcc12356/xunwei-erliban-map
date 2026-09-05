@@ -113,9 +113,9 @@ test('2D / 3D restores the prior viewing angle', () => {
   assert.equal(app.views[1].pitch, 60);
   assert.equal(app.views[1].bearing, -15);
 });
-test('route summary is explicit about straight-line itinerary and never estimates walking minutes', () => {
+test('route summary distinguishes network geometry and never estimates walking minutes', () => {
   const main = read('main.js');
-  assert.match(main, /游览顺序示意 · 非步行导航/);
-  assert.match(main, /站间直线距离合计/);
+  assert.match(main, /沿收录路网 · 参考路线/);
+  assert.match(main, /入口连接，不计入路网长度/);
   assert.doesNotMatch(main, /walkMinutes/);
 });
